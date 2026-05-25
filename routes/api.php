@@ -41,6 +41,7 @@ Route::prefix('v1')->group(function () {
 
     // Login
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login/google', [AuthController::class, 'loginGoogle']);
 
     // =============================================================
     // AUTHENTICATED ROUTES — Butuh token Sanctum

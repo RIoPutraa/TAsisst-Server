@@ -20,6 +20,9 @@ class User extends Authenticatable
         'password_hash',
         'role',
         'status_akun',
+        'google_id',
+        'avatar',
+        'email_verified_at',
     ];
 
     protected $hidden = [
@@ -29,12 +32,13 @@ class User extends Authenticatable
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'email_verified_at' => 'datetime',
     ];
 
     // Override getAuthPassword agar Sanctum pakai password_hash
     public function getAuthPassword(): string
     {
-        return $this->password_hash;
+        return $this->password_hash ?? '';
     }
 
     // ==================== RELASI ====================

@@ -15,6 +15,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Google\Client as GoogleClient;
+use Throwable;
 
 class AuthController extends Controller
 {
@@ -147,6 +149,126 @@ class AuthController extends Controller
             'token_type' => 'Bearer',
             'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
         ]);
+    }
+
+    // ==================== LOGIN GOOGLE ====================
+
+    public function loginGoogle(Request $request): JsonResponse
+    {
+        $request->validate([
+            'id_token' => ['required', 'string'],
+        ]);
+
+        try {
+            $clientId = config('services.google.client_id');
+
+            if (!$clientId) {
+                return $this->errorResponse('Google Client ID belum dikonfigurasi.', null, 500);
+            }
+
+            $client = new GoogleClient([
+                'client_id' => $clientId,
+            ]);
+
+            try {
+                $payload = $client->verifyIdToken($request->id_token);
+            } catch (\Exception $e) {
+                return $this->errorResponse('Token Google tidak valid.', null, 401);
+            }
+
+            if (!$payload) {
+                return $this->errorResponse('Token Google tidak valid.', null, 401);
+            }
+
+            $emailVerified = $payload['email_verified'] ?? false;
+
+            if (!$emailVerified) {
+                return $this->errorResponse('Email Google belum terverifikasi.', null, 403);
+            }
+
+            $googleId = $payload['sub'] ?? null;
+            $email    = strtolower($payload['email'] ?? '');
+            $nama     = $payload['name'] ?? explode('@', $email)[0];
+            $avatar   = $payload['picture'] ?? null;
+
+            if (!$googleId || !$email) {
+                return $this->errorResponse('Data akun Google tidak lengkap.', null, 422);
+            }
+
+            $domain = substr(strrchr($email, '@'), 1);
+
+            if (!$domain) {
+                return $this->errorResponse('Format email tidak valid.', null, 422);
+            }
+
+            $user = User::where('email', $email)->first();
+
+            // Jika email sudah terdaftar
+            if ($user) {
+                if ($user->role === 'admin') {
+                    return $this->errorResponse('Akun admin hanya dapat login melalui web.', null, 403);
+                }
+
+                if (!in_array($user->role, ['mahasiswa', 'dosen'], true)) {
+                    return $this->errorResponse('Role akun tidak dikenali.', null, 403);
+                }
+
+                if ($user->status_akun !== 'aktif') {
+                    return $this->errorResponse('Akun Anda tidak aktif. Hubungi administrator.', null, 403);
+                }
+
+                $user->update([
+                    'google_id'         => $user->google_id ?? $googleId,
+                    'avatar'            => $avatar,
+                    'email_verified_at' => $user->email_verified_at ?? now(),
+                ]);
+            }
+
+            // Jika email belum terdaftar
+            if (!$user) {
+                if (!str_starts_with($domain, 'student.')) {
+                    return $this->errorResponse('Login hanya tersedia untuk email mahasiswa kampus.', null, 403);
+                }
+
+                $user = DB::transaction(function () use ($nama, $email, $googleId, $avatar) {
+                    return User::create([
+                        'nama'              => $nama,
+                        'email'             => $email,
+                        'password_hash'     => null,
+                        'role'              => 'mahasiswa',
+                        'status_akun'       => 'aktif',
+                        'google_id'         => $googleId,
+                        'avatar'            => $avatar,
+                        'email_verified_at' => now(),
+                    ]);
+                });
+            }
+
+            // Hapus token lama sebelum buat token baru
+            $user->tokens()->delete();
+
+            // Buat token baru dengan expired 1 jam
+            $expiresAt = now()->addHour();
+            $token = $user->createToken('auth_token', ['*'], $expiresAt)->plainTextToken;
+
+            $profileData = $this->getProfileData($user);
+
+            return $this->successResponse('Login Google berhasil', [
+                'user' => [
+                    'user_id' => $user->user_id,
+                    'nama'    => $user->nama,
+                    'email'   => $user->email,
+                    'role'    => $user->role,
+                ],
+                'profile'    => $profileData,
+                'token'      => $token,
+                'token_type' => 'Bearer',
+                'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
+            ]);
+
+        } catch (Throwable $e) {
+            return $this->errorResponse('Login Google gagal: ' . $e->getMessage(), null, 500);
+        }
     }
 
     // ==================== LOGOUT ====================
