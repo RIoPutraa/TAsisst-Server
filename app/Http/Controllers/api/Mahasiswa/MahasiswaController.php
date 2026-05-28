@@ -15,7 +15,7 @@ class MahasiswaController extends Controller
 {
     use ApiResponse;
 
-    // GET /api/mahasiswa/dosen
+    // GET /api/mahasiswa/complete-profile
     public function completeProfile(Request $request): JsonResponse
     {
         $user = $request->user();
