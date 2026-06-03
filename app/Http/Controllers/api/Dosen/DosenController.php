@@ -6,15 +6,17 @@ namespace App\Http\Controllers\Api\Dosen;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dosen\UpdateDosenProfileRequest;
 use App\Models\Bimbingan;
+use App\Models\DokumenTA;
+use App\Models\VersiDokumen;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class DosenController extends Controller
 {
     use ApiResponse;
 
-    // GET /api/dosen/profile
     public function profile(Request $request): JsonResponse
     {
         $user  = $request->user();
@@ -45,7 +47,6 @@ class DosenController extends Controller
         ]);
     }
 
-    // PUT /api/dosen/profile
     public function updateProfile(UpdateDosenProfileRequest $request): JsonResponse
     {
         $user  = $request->user();
@@ -55,7 +56,6 @@ class DosenController extends Controller
             return $this->errorResponse('Data dosen tidak ditemukan.', null, 404);
         }
 
-        // Update data user jika ada
         $userFields = array_filter([
             'nama'  => $request->nama,
             'email' => $request->email,
@@ -65,7 +65,6 @@ class DosenController extends Controller
             $user->update($userFields);
         }
 
-        // Update data dosen jika ada
         $dosenFields = array_filter([
             'bidang_keahlian' => $request->bidang_keahlian,
             'kuota_bimbingan' => $request->kuota_bimbingan,
@@ -95,7 +94,6 @@ class DosenController extends Controller
         ]);
     }
 
-    // GET /api/dosen/mahasiswa-bimbingan
     public function mahasiswaBimbingan(Request $request): JsonResponse
     {
         $dosen = $request->user()->dosen;
@@ -104,10 +102,7 @@ class DosenController extends Controller
             return $this->errorResponse('Data dosen tidak ditemukan.', null, 404);
         }
 
-        $bimbingan = Bimbingan::with([
-                'mahasiswa.user',
-                'progresAktif',
-            ])
+        $bimbingan = Bimbingan::with(['mahasiswa.user', 'progresAktif'])
             ->where('dosen_id', $dosen->dosen_id)
             ->when(
                 $request->filled('status'),
@@ -141,7 +136,6 @@ class DosenController extends Controller
         return $this->successResponse('Daftar mahasiswa bimbingan berhasil diambil', $data);
     }
 
-    // GET /api/dosen/mahasiswa-bimbingan/{id}/progres
     public function progreesMahasiswa(Request $request, int $id): JsonResponse
     {
         $dosen = $request->user()->dosen;
@@ -150,10 +144,7 @@ class DosenController extends Controller
             return $this->errorResponse('Data dosen tidak ditemukan.', null, 404);
         }
 
-        $bimbingan = Bimbingan::with([
-                'mahasiswa.user',
-                'progresTA.checklistProgress',
-            ])
+        $bimbingan = Bimbingan::with(['mahasiswa.user', 'progresTA.checklistProgress'])
             ->where('bimbingan_id', $id)
             ->where('dosen_id', $dosen->dosen_id)
             ->first();
@@ -161,7 +152,8 @@ class DosenController extends Controller
         if (!$bimbingan) {
             return $this->errorResponse(
                 'Bimbingan tidak ditemukan atau bukan milik Anda.',
-                null, 404
+                null,
+                404
             );
         }
 
@@ -199,6 +191,122 @@ class DosenController extends Controller
                 'judul_ta'     => $bimbingan->mahasiswa->judul_ta,
             ],
             'progres'          => $progres,
+        ]);
+    }
+
+    public function dokumenMahasiswa(Request $request, int $id): JsonResponse
+    {
+        $dosen = $request->user()->dosen;
+
+        if (!$dosen) {
+            return $this->errorResponse('Data dosen tidak ditemukan.', null, 404);
+        }
+
+        $bimbingan = Bimbingan::with('mahasiswa.user')
+            ->where('bimbingan_id', $id)
+            ->where('dosen_id', $dosen->dosen_id)
+            ->first();
+
+        if (!$bimbingan) {
+            return $this->errorResponse(
+                'Bimbingan tidak ditemukan atau bukan milik Anda.',
+                null,
+                404
+            );
+        }
+
+        $dokumen = DokumenTA::with('versiTerbaru')
+            ->where('bimbingan_id', $bimbingan->bimbingan_id)
+            ->orderByDesc('created_at')
+            ->paginate($request->get('per_page', 10));
+
+        $data = $dokumen->through(function ($d) {
+            return [
+                'dokumen_id'    => $d->dokumen_id,
+                'jenis_dokumen' => $d->jenis_dokumen,
+                'judul_dokumen' => $d->judul_dokumen,
+                'deskripsi'     => $d->deskripsi,
+                'created_at'    => $d->created_at->format('Y-m-d H:i:s'),
+                'versi_terbaru' => $d->versiTerbaru ? [
+                    'versi_id'     => $d->versiTerbaru->versi_id,
+                    'nomor_versi'  => $d->versiTerbaru->nomor_versi,
+                    'file_url'     => Storage::url($d->versiTerbaru->file_url_or_path),
+                    'status_versi' => $d->versiTerbaru->status_versi,
+                    'uploaded_at'  => $d->versiTerbaru->uploaded_at->format('Y-m-d H:i:s'),
+                ] : null,
+            ];
+        });
+
+        return $this->successResponse('Daftar dokumen mahasiswa berhasil diambil', [
+            'bimbingan_id' => $bimbingan->bimbingan_id,
+            'mahasiswa'    => [
+                'mahasiswa_id' => $bimbingan->mahasiswa->mahasiswa_id,
+                'nama'         => $bimbingan->mahasiswa->user->nama,
+                'nim'          => $bimbingan->mahasiswa->nim,
+                'judul_ta'     => $bimbingan->mahasiswa->judul_ta,
+            ],
+            'dokumen'      => $data,
+        ]);
+    }
+
+    public function riwayatVersiDokumen(Request $request, int $id): JsonResponse
+    {
+        $dosen = $request->user()->dosen;
+
+        if (!$dosen) {
+            return $this->errorResponse('Data dosen tidak ditemukan.', null, 404);
+        }
+
+        $dokumen = DokumenTA::with('bimbingan.mahasiswa.user')
+            ->whereHas('bimbingan', function ($q) use ($dosen) {
+                $q->where('dosen_id', $dosen->dosen_id);
+            })
+            ->findOrFail($id);
+
+        $versi = VersiDokumen::with(['uploader', 'feedbackDokumen.dosen.user'])
+            ->where('dokumen_id', $dokumen->dokumen_id)
+            ->orderByDesc('nomor_versi')
+            ->paginate($request->get('per_page', 10));
+
+        $data = $versi->through(function ($v) {
+            return [
+                'versi_id'       => $v->versi_id,
+                'nomor_versi'    => $v->nomor_versi,
+                'file_url'       => Storage::url($v->file_url_or_path),
+                'catatan_revisi' => $v->catatan_revisi,
+                'status_versi'   => $v->status_versi,
+                'uploaded_at'    => $v->uploaded_at->format('Y-m-d H:i:s'),
+                'uploader'       => [
+                    'user_id' => $v->uploader->user_id,
+                    'nama'    => $v->uploader->nama,
+                    'role'    => $v->uploader->role,
+                ],
+                'feedback'       => $v->feedbackDokumen->map(fn($f) => [
+                    'feedback_id'    => $f->feedback_id,
+                    'komentar'       => $f->komentar,
+                    'halaman'        => $f->halaman,
+                    'posisi_anotasi' => $f->posisi_anotasi,
+                    'created_at'     => $f->created_at->format('Y-m-d H:i:s'),
+                    'dosen'          => [
+                        'dosen_id' => $f->dosen->dosen_id,
+                        'nama'     => $f->dosen->user->nama,
+                    ],
+                ]),
+            ];
+        });
+
+        return $this->successResponse('Riwayat versi dokumen berhasil diambil', [
+            'dokumen' => [
+                'dokumen_id'    => $dokumen->dokumen_id,
+                'judul_dokumen' => $dokumen->judul_dokumen,
+                'jenis_dokumen' => $dokumen->jenis_dokumen,
+                'mahasiswa'     => [
+                    'mahasiswa_id' => $dokumen->bimbingan->mahasiswa->mahasiswa_id,
+                    'nama'         => $dokumen->bimbingan->mahasiswa->user->nama,
+                    'nim'          => $dokumen->bimbingan->mahasiswa->nim,
+                ],
+            ],
+            'versi' => $data,
         ]);
     }
 }

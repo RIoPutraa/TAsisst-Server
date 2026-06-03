@@ -20,7 +20,6 @@ class DokumenTAController extends Controller
 {
     use ApiResponse;
 
-    // POST /api/mahasiswa/dokumen
     public function upload(DokumenTARequest $request): JsonResponse
     {
         $user      = $request->user();
@@ -30,7 +29,6 @@ class DokumenTAController extends Controller
             return $this->errorResponse('Data mahasiswa tidak ditemukan.', null, 404);
         }
 
-        // Cek bimbingan aktif
         $bimbingan = Bimbingan::where('mahasiswa_id', $mahasiswa->mahasiswa_id)
             ->where('status_bimbingan', 'aktif')
             ->first();
@@ -38,13 +36,14 @@ class DokumenTAController extends Controller
         if (!$bimbingan) {
             return $this->errorResponse(
                 'Anda tidak memiliki bimbingan aktif. Upload dokumen tidak diizinkan.',
-                null, 422
+                null,
+                422
             );
         }
 
         DB::beginTransaction();
+
         try {
-            // Simpan metadata dokumen
             $dokumen = DokumenTA::create([
                 'bimbingan_id'  => $bimbingan->bimbingan_id,
                 'jenis_dokumen' => $request->jenis_dokumen,
@@ -52,7 +51,6 @@ class DokumenTAController extends Controller
                 'deskripsi'     => $request->deskripsi,
             ]);
 
-            // Upload file ke storage
             $file     = $request->file('file');
             $fileName = time() . '_' . $user->user_id . '_' . $file->getClientOriginalName();
             $filePath = $file->storeAs(
@@ -61,20 +59,18 @@ class DokumenTAController extends Controller
                 'public'
             );
 
-            // Buat versi pertama dokumen
             $versi = VersiDokumen::create([
-                'dokumen_id'      => $dokumen->dokumen_id,
-                'uploader_user_id'=> $user->user_id,
-                'nomor_versi'     => 1,
-                'file_url_or_path'=> $filePath,
-                'catatan_revisi'  => $request->catatan_revisi,
-                'uploaded_at'     => now(),
-                'status_versi'    => 'diajukan',
+                'dokumen_id'       => $dokumen->dokumen_id,
+                'uploader_user_id' => $user->user_id,
+                'nomor_versi'      => 1,
+                'file_url_or_path' => $filePath,
+                'catatan_revisi'   => $request->catatan_revisi,
+                'uploaded_at'      => now(),
+                'status_versi'     => 'diajukan',
             ]);
 
             DB::commit();
 
-            // Notifikasi ke dosen
             NotifikasiService::kirim(
                 userId   : $bimbingan->dosen->user_id,
                 tipe     : 'upload_dokumen',
@@ -98,14 +94,12 @@ class DokumenTAController extends Controller
                     'uploaded_at'     => $versi->uploaded_at->format('Y-m-d H:i:s'),
                 ],
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return $this->errorResponse('Gagal mengunggah dokumen: ' . $e->getMessage(), null, 500);
         }
     }
 
-    // GET /api/mahasiswa/dokumen
     public function index(Request $request): JsonResponse
     {
         $mahasiswa = $request->user()->mahasiswa;
@@ -135,11 +129,11 @@ class DokumenTAController extends Controller
                 'deskripsi'     => $d->deskripsi,
                 'created_at'    => $d->created_at->format('Y-m-d H:i:s'),
                 'versi_terbaru' => $d->versiTerbaru ? [
-                    'versi_id'    => $d->versiTerbaru->versi_id,
-                    'nomor_versi' => $d->versiTerbaru->nomor_versi,
-                    'file_url'    => Storage::url($d->versiTerbaru->file_url_or_path),
-                    'status_versi'=> $d->versiTerbaru->status_versi,
-                    'uploaded_at' => $d->versiTerbaru->uploaded_at->format('Y-m-d H:i:s'),
+                    'versi_id'     => $d->versiTerbaru->versi_id,
+                    'nomor_versi'  => $d->versiTerbaru->nomor_versi,
+                    'file_url'     => Storage::url($d->versiTerbaru->file_url_or_path),
+                    'status_versi' => $d->versiTerbaru->status_versi,
+                    'uploaded_at'  => $d->versiTerbaru->uploaded_at->format('Y-m-d H:i:s'),
                 ] : null,
             ];
         });
@@ -147,7 +141,6 @@ class DokumenTAController extends Controller
         return $this->successResponse('Daftar dokumen berhasil diambil', $data);
     }
 
-    // GET /api/mahasiswa/dokumen/{id}/versi
     public function riwayatVersi(Request $request, int $id): JsonResponse
     {
         $mahasiswa = $request->user()->mahasiswa;
@@ -161,7 +154,10 @@ class DokumenTAController extends Controller
             })
             ->findOrFail($id);
 
-        $versi = VersiDokumen::with('uploader')
+        $versi = VersiDokumen::with([
+                'uploader',
+                'feedbackDokumen.dosen.user',
+            ])
             ->where('dokumen_id', $dokumen->dokumen_id)
             ->orderByDesc('nomor_versi')
             ->paginate($request->get('per_page', 10));
@@ -179,6 +175,17 @@ class DokumenTAController extends Controller
                     'nama'    => $v->uploader->nama,
                     'role'    => $v->uploader->role,
                 ],
+                'feedback'        => $v->feedbackDokumen->map(fn($f) => [
+                    'feedback_id'    => $f->feedback_id,
+                    'komentar'       => $f->komentar,
+                    'halaman'        => $f->halaman,
+                    'posisi_anotasi' => $f->posisi_anotasi,
+                    'created_at'     => $f->created_at->format('Y-m-d H:i:s'),
+                    'dosen'          => [
+                        'dosen_id' => $f->dosen->dosen_id,
+                        'nama'     => $f->dosen->user->nama,
+                    ],
+                ]),
             ];
         });
 
@@ -192,7 +199,6 @@ class DokumenTAController extends Controller
         ]);
     }
 
-    // POST /api/mahasiswa/dokumen/{id}/versi — Upload versi baru
     public function uploadVersi(VersiDokumenRequest $request, int $id): JsonResponse
     {
         $user      = $request->user();
@@ -202,7 +208,6 @@ class DokumenTAController extends Controller
             return $this->errorResponse('Data mahasiswa tidak ditemukan.', null, 404);
         }
 
-        // Pastikan dokumen milik mahasiswa ini
         $dokumen = DokumenTA::whereHas('bimbingan', function ($q) use ($mahasiswa) {
                 $q->where('mahasiswa_id', $mahasiswa->mahasiswa_id)
                   ->where('status_bimbingan', 'aktif');
@@ -212,15 +217,14 @@ class DokumenTAController extends Controller
         $bimbingan = $dokumen->bimbingan;
 
         DB::beginTransaction();
+
         try {
-            // Hitung nomor versi berikutnya
             $nomorVersiTerbaru = VersiDokumen::where('dokumen_id', $dokumen->dokumen_id)
                 ->max('nomor_versi') ?? 0;
-            $nomorVersiBarú    = $nomorVersiTerbaru + 1;
+            $nomorVersiBaru = $nomorVersiTerbaru + 1;
 
-            // Upload file baru
             $file     = $request->file('file');
-            $fileName = time() . '_v' . $nomorVersiBarú . '_' . $file->getClientOriginalName();
+            $fileName = time() . '_v' . $nomorVersiBaru . '_' . $file->getClientOriginalName();
             $filePath = $file->storeAs(
                 'dokumen_ta/' . $bimbingan->bimbingan_id,
                 $fileName,
@@ -230,7 +234,7 @@ class DokumenTAController extends Controller
             $versi = VersiDokumen::create([
                 'dokumen_id'       => $dokumen->dokumen_id,
                 'uploader_user_id' => $user->user_id,
-                'nomor_versi'      => $nomorVersiBarú,
+                'nomor_versi'      => $nomorVersiBaru,
                 'file_url_or_path' => $filePath,
                 'catatan_revisi'   => $request->catatan_revisi,
                 'uploaded_at'      => now(),
@@ -239,12 +243,11 @@ class DokumenTAController extends Controller
 
             DB::commit();
 
-            // Notifikasi ke dosen
             NotifikasiService::kirim(
                 userId   : $bimbingan->dosen->user_id,
                 tipe     : 'upload_versi_dokumen',
                 judul    : 'Versi Dokumen Baru',
-                pesan    : "Mahasiswa {$user->nama} mengupload versi {$nomorVersiBarú} untuk dokumen: {$dokumen->judul_dokumen}",
+                pesan    : "Mahasiswa {$user->nama} mengupload versi {$nomorVersiBaru} untuk dokumen: {$dokumen->judul_dokumen}",
                 refTabel : 'versi_dokumen',
                 refId    : $versi->versi_id
             );
@@ -258,7 +261,6 @@ class DokumenTAController extends Controller
                 'status_versi'    => $versi->status_versi,
                 'uploaded_at'     => $versi->uploaded_at->format('Y-m-d H:i:s'),
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return $this->errorResponse('Gagal mengupload versi: ' . $e->getMessage(), null, 500);

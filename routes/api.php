@@ -127,6 +127,8 @@ Route::prefix('v1')->group(function () {
                 Route::prefix('mahasiswa-bimbingan')->group(function () {
                     Route::get('/',              [DosenController::class, 'mahasiswaBimbingan']);
                     Route::get('/{id}/progres',  [DosenController::class, 'progreesMahasiswa']);
+                    // dosen melihat dokumen mahasiswa bimbingan
+                    Route::get('/{id}/dokumen',  [DosenController::class, 'dokumenMahasiswa']);
                 });
 
                 // Feedback dokumen
@@ -148,6 +150,11 @@ Route::prefix('v1')->group(function () {
 
                     // Checklist progress
                     Route::post('/{id}/checklist', [ChecklistProgressController::class, 'store']);
+                });
+
+                // Melihat riwayat versi dokumen
+                Route::prefix('dokumen')->group(function () {
+                    Route::get('/{id}/versi', [DosenController::class, 'riwayatVersiDokumen']);
                 });
 
                 // Checklist CRUD
