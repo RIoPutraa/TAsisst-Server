@@ -57,35 +57,28 @@ class InformasiTAController extends Controller
             return $this->errorResponse('Data admin tidak ditemukan.', null, 404);
         }
 
+        $publishedAt = $request->filled('published_at')
+            ? $request->input('published_at')
+            : null;
+
         $informasi = InformasiTA::create([
-            'admin_id'      => $admin->admin_id,
-            'kategori'      => $request->kategori,
-            'judul'         => $request->judul,
-            'konten_or_file'=> $request->konten_or_file,
-            'published_at'  => $request->published_at ?? now(),
+            'admin_id'       => $admin->admin_id,
+            'kategori'       => $request->kategori,
+            'judul'          => $request->judul,
+            'konten_or_file' => $request->konten_or_file,
+            'published_at'   => $publishedAt,
         ]);
 
-        // Kirim notifikasi broadcast ke semua mahasiswa dan dosen aktif
-        $userIds = User::whereIn('role', ['mahasiswa', 'dosen'])
-            ->where('status_akun', 'aktif')
-            ->pluck('user_id')
-            ->toArray();
-
-        NotifikasiService::kirimKeBanyak(
-            userIds  : $userIds,
-            tipe     : 'informasi_ta',
-            judul    : 'Informasi TA Baru: ' . $request->judul,
-            pesan    : "Terdapat informasi TA baru dengan kategori {$request->kategori}: {$request->judul}",
-            refTabel : 'informasi_ta',
-            refId    : $informasi->info_id
-        );
+        if ($informasi->published_at !== null) {
+            $this->kirimNotifikasiInformasiTA($informasi);
+        }
 
         return $this->successResponse('Informasi TA berhasil ditambahkan', [
-            'info_id'       => $informasi->info_id,
-            'kategori'      => $informasi->kategori,
-            'judul'         => $informasi->judul,
-            'konten_or_file'=> $informasi->konten_or_file,
-            'published_at'  => $informasi->published_at?->format('Y-m-d H:i:s'),
+            'info_id'        => $informasi->info_id,
+            'kategori'       => $informasi->kategori,
+            'judul'          => $informasi->judul,
+            'konten_or_file' => $informasi->konten_or_file,
+            'published_at'   => $informasi->published_at?->format('Y-m-d H:i:s'),
         ], 201);
     }
 
@@ -100,19 +93,37 @@ class InformasiTAController extends Controller
 
         $informasi = InformasiTA::findOrFail($id);
 
+        $wasPublished = $informasi->published_at !== null;
+
+        $publishedAt = $request->exists('published_at')
+            ? (
+                $request->filled('published_at')
+                    ? $request->input('published_at')
+                    : null
+            )
+            : $informasi->published_at;
+
         $informasi->update([
-            'kategori'      => $request->kategori,
-            'judul'         => $request->judul,
-            'konten_or_file'=> $request->konten_or_file,
-            'published_at'  => $request->published_at ?? $informasi->published_at,
+            'kategori'       => $request->kategori,
+            'judul'          => $request->judul,
+            'konten_or_file' => $request->konten_or_file,
+            'published_at'   => $publishedAt,
         ]);
 
+        $informasi->refresh();
+
+        $nowPublished = $informasi->published_at !== null;
+
+        if (!$wasPublished && $nowPublished) {
+            $this->kirimNotifikasiInformasiTA($informasi);
+        }
+
         return $this->successResponse('Informasi TA berhasil diperbarui', [
-            'info_id'       => $informasi->info_id,
-            'kategori'      => $informasi->kategori,
-            'judul'         => $informasi->judul,
-            'konten_or_file'=> $informasi->konten_or_file,
-            'published_at'  => $informasi->published_at?->format('Y-m-d H:i:s'),
+            'info_id'        => $informasi->info_id,
+            'kategori'       => $informasi->kategori,
+            'judul'          => $informasi->judul,
+            'konten_or_file' => $informasi->konten_or_file,
+            'published_at'   => $informasi->published_at?->format('Y-m-d H:i:s'),
         ]);
     }
 
@@ -120,9 +131,46 @@ class InformasiTAController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $informasi = InformasiTA::findOrFail($id);
-        $judul     = $informasi->judul;
+        $judul = $informasi->judul;
+
+        // Hapus notifikasi yang berhubungan dengan informasi TA ini
+        Notifikasi::where('ref_tabel', 'informasi_ta')
+            ->where('ref_id', $informasi->info_id)
+            ->delete();
+
         $informasi->delete();
 
         return $this->successResponse("Informasi TA \"{$judul}\" berhasil dihapus.");
+    }
+
+    private function kirimNotifikasiInformasiTA(InformasiTA $informasi): void
+    {
+        Notifikasi::where('ref_tabel', 'informasi_ta')
+            ->where('ref_id', $informasi->info_id)
+            ->delete();
+
+        $userIds = User::whereIn('role', ['mahasiswa', 'dosen'])
+            ->where('status_akun', 'aktif')
+            ->pluck('user_id')
+            ->toArray();
+
+        if (empty($userIds)) {
+            return;
+        }
+
+        $konten = trim((string) $informasi->konten_or_file);
+
+        $pesan = $konten !== ''
+            ? $konten
+            : "Informasi TA kategori {$informasi->kategori} telah dipublikasikan.";
+
+        NotifikasiService::kirimKeBanyak(
+            userIds: $userIds,
+            tipe: 'informasi_ta',
+            judul: 'Informasi TA: ' . $informasi->judul,
+            pesan: $pesan,
+            refTabel: 'informasi_ta',
+            refId: $informasi->info_id
+        );
     }
 }
