@@ -76,6 +76,7 @@ class JadwalBimbinganController extends Controller
     {
         $request->validate([
             'status_konfirmasi' => 'required|in:dikonfirmasi,ditolak',
+            'mode'              => 'nullable|in:online,offline',
             'catatan'           => 'nullable|string|max:500',
         ]);
 
@@ -108,6 +109,7 @@ class JadwalBimbinganController extends Controller
 
         $jadwal->update([
             'status_konfirmasi' => $request->status_konfirmasi,
+            'mode'              => $request->mode ?? $jadwal->mode,
             'catatan'           => $request->catatan ?? $jadwal->catatan,
         ]);
 
@@ -119,7 +121,7 @@ class JadwalBimbinganController extends Controller
             userId   : $mahasiswa->user_id,
             tipe     : 'konfirmasi_jadwal',
             judul    : 'Update Status Jadwal Bimbingan',
-            pesan    : "Jadwal bimbingan Anda pada {$jadwal->tanggal->format('Y-m-d')} pukul {$jadwal->waktu_mulai} telah {$statusPesan} oleh dosen.",
+            pesan    : "Jadwal bimbingan Anda pada {$jadwal->tanggal->format('Y-m-d')} pukul {$jadwal->waktu_mulai} telah {$statusPesan} oleh dosen. Mode bimbingan: {$jadwal->mode}.",
             refTabel : 'jadwal_bimbingan',
             refId    : $jadwal->jadwal_id
         );

@@ -75,6 +75,8 @@ class ChecklistProgressController extends Controller
             )
             ->findOrFail($id);
 
+        $wasDone = (bool) $checklist->tgl_selesai;
+
         $checklist->update([
             'nama_item'       => $request->nama_item ?? $checklist->nama_item,
             'tgl_selesai'     => $request->has('tgl_selesai')
@@ -90,8 +92,8 @@ class ChecklistProgressController extends Controller
 
         $checklist->refresh();
 
-        // Notifikasi ke mahasiswa jika item ditandai selesai
-        if ($checklist->tgl_selesai) {
+        // Notifikasi ke mahasiswa hanya saat berubah dari belum selesai -> selesai
+        if (!$wasDone && $checklist->tgl_selesai) {
             $mahasiswaUserId = $checklist->progresTA->bimbingan->mahasiswa->user_id;
             NotifikasiService::kirim(
                 userId   : $mahasiswaUserId,
