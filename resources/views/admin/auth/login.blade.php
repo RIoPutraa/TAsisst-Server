@@ -4,30 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - TAssist</title>
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('tassist-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#1A2035]" style="font-family: Inter, sans-serif;">
+<body class="min-h-screen flex items-center justify-center relative overflow-hidden theme-bg-main theme-text-main" style="font-family: Inter, sans-serif;">
+
+    <div class="absolute top-5 right-5 z-20">
+        @include('components.theme-switcher')
+    </div>
 
     <!-- Background decoration -->
-    <div class="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 blur-3xl bg-[#0057B8]"></div>
-    <div class="absolute bottom-0 left-0 w-96 h-96 rounded-full opacity-10 blur-3xl bg-[#4DA3FF]"></div>
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 blur-3xl theme-decoration-primary"></div>
+    <div class="absolute bottom-0 left-0 w-96 h-96 rounded-full opacity-10 blur-3xl theme-decoration-accent"></div>
 
     <!-- Login Card -->
-    <div class="relative z-10 w-full max-w-md mx-4 rounded-2xl p-8 shadow-2xl bg-[#242D45] border border-[#3A4566]">
+    <div class="relative z-10 w-full max-w-md mx-4 rounded-2xl p-8 border theme-card">
         
         <!-- Logo -->
         <div class="flex flex-col items-center mb-8">
-            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-[#0057B8]">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 theme-logo-bg">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
                 </svg>
             </div>
 
-            <h1 class="text-white text-2xl font-extrabold">TAssist</h1>
-            <p class="text-sm mt-1 text-[#A0A8C0]">
+            <h1 class="theme-text-main text-2xl font-extrabold">TAssist</h1>
+            <p class="text-sm mt-1 theme-text-muted">
                 Academic TA Management System
             </p>
-            <div class="mt-3 px-3 py-1 rounded-full text-xs font-medium bg-[rgba(0,87,184,0.15)] text-[#4DA3FF]">
+            <div class="mt-3 px-3 py-1 rounded-full text-xs font-medium theme-badge-primary">
                 Admin Portal
             </div>
         </div>
@@ -37,7 +47,7 @@
             @csrf
 
             @if ($errors->any())
-                <div class="flex items-start gap-2 p-3 rounded-xl text-sm bg-[rgba(255,77,77,0.1)] border border-[rgba(255,77,77,0.3)] text-[#FF4D4D]">
+                <div class="flex items-start gap-2 p-3 rounded-xl text-sm border theme-alert-error">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.66 18h16.68a1 1 0 00.87-1.5l-7.5-13a1 1 0 00-1.74 0z"/>
                     </svg>
@@ -46,7 +56,7 @@
             @endif
 
             @if (session('error'))
-                <div class="flex items-start gap-2 p-3 rounded-xl text-sm bg-[rgba(255,77,77,0.1)] border border-[rgba(255,77,77,0.3)] text-[#FF4D4D]">
+                <div class="flex items-start gap-2 p-3 rounded-xl text-sm border theme-alert-error">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.66 18h16.68a1 1 0 00.87-1.5l-7.5-13a1 1 0 00-1.74 0z"/>
                     </svg>
@@ -56,7 +66,7 @@
 
             <!-- Email -->
             <div>
-                <label for="email" class="block text-sm mb-2 text-[#A0A8C0] font-medium">
+                <label for="email" class="block text-sm mb-2 theme-text-muted font-medium"
                     Email Address
                 </label>
                 <input
@@ -66,13 +76,13 @@
                     value="{{ old('email') }}"
                     placeholder="Enter your Email"
                     required
-                    class="w-full px-4 py-3 rounded-xl outline-none transition-all duration-200 text-sm bg-[#2A3352] border border-[#3A4566] text-white focus:border-[#4DA3FF] focus:ring-4 focus:ring-[rgba(77,163,255,0.1)]"
+                    class="w-full px-4 py-3 rounded-xl outline-none transition-all duration-200 text-sm border theme-input"
                 >
             </div>
 
             <!-- Password -->
             <div x-data="{ show: false }">
-                <label for="password" class="block text-sm mb-2 text-[#A0A8C0] font-medium">
+                <label for="password" class="block text-sm mb-2 theme-text-muted font-medium">
                     Password
                 </label>
 
@@ -83,13 +93,13 @@
                         name="password"
                         placeholder="Enter your password"
                         required
-                        class="w-full px-4 py-3 pr-12 rounded-xl outline-none transition-all duration-200 text-sm bg-[#2A3352] border border-[#3A4566] text-white focus:border-[#4DA3FF] focus:ring-4 focus:ring-[rgba(77,163,255,0.1)]"
+                        class="w-full px-4 py-3 pr-12 rounded-xl outline-none transition-all duration-200 text-sm border theme-input"
                     >
 
                     <button
                         type="button"
                         @click="show = !show"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#A0A8C0]"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 p-1 theme-text-muted"
                     >
                         <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -106,13 +116,13 @@
             <!-- Login Button -->
             <button
                 type="submit"
-                class="w-full py-3 rounded-xl text-white text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-[#0057B8] hover:bg-[#0046A0] font-semibold"
+                class="w-full py-3 rounded-xl text-white text-sm transition-all duration-200 flex items-center justify-center gap-2 theme-primary-btn font-semibold"
             >
                 Sign In
             </button>
         </form>
 
-        <p class="text-center text-xs mt-6 text-[#A0A8C0]">
+        <p class="text-center text-xs mt-6 theme-text-muted">
             TAssist
         </p>
     </div>

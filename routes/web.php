@@ -28,6 +28,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+        // Manage Profile
+        Route::get('/manage-profile', function () {
+            return view('admin.manage-profile.index');
+        })->name('manage-profile.index');
+
         // Manajemen Mahasiswa
         Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
             Route::get('/',            [MahasiswaController::class, 'index'])->name('index');

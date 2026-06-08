@@ -69,49 +69,51 @@
     $unreadCount = collect($notifications)->where('read', false)->count();
     $readCount = count($notifications) - $unreadCount;
 
-    function notifTypeConfig($type) {
-        return match($type) {
-            'student' => [
-                'color' => '#4DA3FF',
-                'bg' => 'rgba(77,163,255,0.15)',
-                'icon' => 'student',
-            ],
-            'lecturer' => [
-                'color' => '#3DDC97',
-                'bg' => 'rgba(61,220,151,0.15)',
-                'icon' => 'lecturer',
-            ],
-            'ta' => [
-                'color' => '#FFB900',
-                'bg' => 'rgba(255,185,0,0.15)',
-                'icon' => 'file',
-            ],
-            'quota' => [
-                'color' => '#FF4D4D',
-                'bg' => 'rgba(255,77,77,0.15)',
-                'icon' => 'gear',
-            ],
-            default => [
-                'color' => '#A0A8C0',
-                'bg' => 'rgba(160,168,192,0.15)',
-                'icon' => 'shield',
-            ],
-        };
+    if (! function_exists('notifTypeConfig')) {
+        function notifTypeConfig($type) {
+            return match($type) {
+                'student' => [
+                    'icon' => 'student',
+                    'bgClass' => 'bg-[rgba(77,163,255,0.15)]',
+                    'textClass' => 'text-[#4DA3FF]',
+                ],
+                'lecturer' => [
+                    'icon' => 'lecturer',
+                    'bgClass' => 'bg-[rgba(61,220,151,0.15)]',
+                    'textClass' => 'text-[#3DDC97]',
+                ],
+                'ta' => [
+                    'icon' => 'file',
+                    'bgClass' => 'bg-[rgba(255,185,0,0.15)]',
+                    'textClass' => 'text-[#FFB900]',
+                ],
+                'quota' => [
+                    'icon' => 'gear',
+                    'bgClass' => 'bg-[rgba(255,77,77,0.15)]',
+                    'textClass' => 'text-[#FF4D4D]',
+                ],
+                default => [
+                    'icon' => 'shield',
+                    'bgClass' => 'bg-[rgba(160,168,192,0.15)]',
+                    'textClass' => 'text-[#A0A8C0]',
+                ],
+            };
+        }
     }
 @endphp
 
 <div
     id="notificationPanel"
-    class="hidden absolute top-16 right-0 z-50 w-[460px] rounded-[24px] overflow-hidden shadow-2xl bg-[#242D45] border border-[#3A4566]"
+    class="hidden absolute top-16 right-0 z-50 w-[460px] rounded-[24px] overflow-hidden border theme-card"
 >
     <!-- Header -->
-    <div class="flex items-center justify-between px-5 py-4 border-b border-[#3A4566]">
+    <div class="flex items-center justify-between px-5 py-4 border-b theme-border">
         <div class="flex items-center gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-[18px] h-[18px] text-[#4DA3FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-[18px] h-[18px] text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
             </svg>
 
-            <span class="text-white text-[18px] font-bold">Notifications</span>
+            <span class="theme-text-main text-[18px] font-bold">Notifications</span>
 
             @if ($unreadCount > 0)
                 <span class="px-3 py-1 rounded-full bg-[#FF5A57] text-white text-sm font-bold leading-none">
@@ -121,13 +123,19 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <button class="p-2 rounded-xl text-[#A0A8C0] hover:bg-[#2A3352] hover:text-[#4DA3FF] transition" title="Mark all as read">
+            <button
+                class="p-2 rounded-xl theme-text-muted hover:bg-[var(--color-hover)] hover:text-[var(--color-accent)] transition"
+                title="Mark all as read"
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M13 8l2 2 4-4"/>
                 </svg>
             </button>
 
-            <button class="p-2 rounded-xl text-[#A0A8C0] hover:bg-[#2A3352] hover:text-[#FF4D4D] transition" title="Clear all">
+            <button
+                class="p-2 rounded-xl theme-text-muted hover:bg-[var(--color-hover)] hover:text-[var(--color-error-text)] transition"
+                title="Clear all"
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0l1 12h6l1-12" />
                 </svg>
@@ -135,7 +143,7 @@
 
             <button
                 onclick="toggleNotificationPanel(false)"
-                class="p-2 rounded-xl text-[#A0A8C0] hover:bg-[#2A3352] hover:text-white transition"
+                class="p-2 rounded-xl theme-text-muted hover:bg-[var(--color-hover)] hover:text-[var(--color-text-main)] transition"
                 title="Close"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -146,10 +154,10 @@
     </div>
 
     <!-- Info -->
-    <div class="px-5 py-3 border-b border-[#3A4566] text-sm text-[#A0A8C0]">
+    <div class="px-5 py-3 border-b theme-border text-sm theme-text-muted">
         @if ($unreadCount > 0)
             {{ $unreadCount }} unread
-            <span class="mx-2 text-[#4A567B]">•</span>
+            <span class="mx-2 theme-text-faint">•</span>
             {{ $readCount }} read
         @else
             All caught up!
@@ -164,15 +172,14 @@
             @endphp
 
             <div
-                class="group relative flex items-start gap-4 px-5 py-4 border-b border-[#2A3352] hover:bg-[#2A3352] transition {{ !$notif['read'] ? 'bg-[rgba(0,87,184,0.06)]' : '' }}"
+                class="group relative flex items-start gap-4 px-5 py-4 border-b theme-border-soft hover:bg-[var(--color-hover)] transition {{ !$notif['read'] ? 'bg-[var(--color-primary-soft)]' : '' }}"
             >
                 @if (!$notif['read'])
-                    <span class="absolute left-2 top-7 w-2 h-2 rounded-full bg-[#4DA3FF]"></span>
+                    <span class="absolute left-2 top-7 w-2 h-2 rounded-full bg-[var(--color-accent)]"></span>
                 @endif
 
                 <div
-                    class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style="background-color: {{ $cfg['bg'] }}; color: {{ $cfg['color'] }};"
+                    class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5 {{ $cfg['bgClass'] }} {{ $cfg['textClass'] }}"
                 >
                     @if ($cfg['icon'] === 'student')
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -200,27 +207,35 @@
                 </div>
 
                 <div class="flex-1 min-w-0 pr-10">
-                    <p class="text-[15px] leading-tight {{ $notif['read'] ? 'text-[#D0D7E8] font-medium' : 'text-white font-bold' }}">
+                    <p class="text-[15px] leading-tight {{ $notif['read'] ? 'theme-text-muted font-medium' : 'theme-text-main font-bold' }}">
                         {{ $notif['title'] }}
                     </p>
-                    <p class="text-[#A0A8C0] text-sm mt-1 leading-6">
+
+                    <p class="theme-text-muted text-sm mt-1 leading-6">
                         {{ $notif['message'] }}
                     </p>
-                    <p class="text-[#4DA3FF] text-sm mt-2">
+
+                    <p class="text-[var(--color-accent)] text-sm mt-2">
                         {{ $notif['time'] }}
                     </p>
                 </div>
 
                 <div class="absolute right-3 top-3 hidden group-hover:flex flex-col gap-2">
                     @if (!$notif['read'])
-                        <button class="w-7 h-7 rounded-lg bg-[rgba(77,163,255,0.15)] text-[#4DA3FF] flex items-center justify-center">
+                        <button
+                            class="w-7 h-7 rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-accent)] flex items-center justify-center"
+                            title="Mark as read"
+                        >
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-[12px] h-[12px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                             </svg>
                         </button>
                     @endif
 
-                    <button class="w-7 h-7 rounded-lg bg-[rgba(255,77,77,0.15)] text-[#FF4D4D] flex items-center justify-center">
+                    <button
+                        class="w-7 h-7 rounded-lg bg-[var(--color-error-bg)] text-[var(--color-error-text)] flex items-center justify-center"
+                        title="Remove notification"
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-[12px] h-[12px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -229,20 +244,21 @@
             </div>
         @empty
             <div class="py-14 flex flex-col items-center justify-center gap-3">
-                <div class="w-14 h-14 rounded-full bg-[rgba(160,168,192,0.1)] flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-[#A0A8C0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <div class="w-14 h-14 rounded-full bg-[var(--color-primary-soft)] flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 theme-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
                     </svg>
                 </div>
-                <p class="text-[#A0A8C0] text-sm">No notifications</p>
+
+                <p class="theme-text-muted text-sm">No notifications</p>
             </div>
         @endforelse
     </div>
 
     <!-- Footer -->
     @if (count($notifications) > 0)
-        <div class="px-5 py-4 text-center border-t border-[#3A4566]">
-            <button class="text-[#4DA3FF] text-sm font-medium hover:text-[#0057B8] transition">
+        <div class="px-5 py-4 text-center border-t theme-border">
+            <button class="text-[var(--color-accent)] text-sm font-medium hover:text-[var(--color-primary)] transition">
                 Mark all as read
             </button>
         </div>
