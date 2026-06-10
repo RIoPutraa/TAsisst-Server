@@ -1,7 +1,7 @@
 <button
     type="button"
     onclick="toggleTAssistTheme()"
-    class="theme-switcher-button inline-flex items-center justify-center gap-2 px-3 py-2 rounded-full border text-xs font-semibold transition-all duration-200"
+    class="theme-switcher-button inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-full border text-xs font-extrabold transition-all duration-200"
     title="Switch color scheme"
 >
     <span class="theme-mode-dark">

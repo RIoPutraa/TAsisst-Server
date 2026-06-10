@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'               => \App\Http\Middleware\RoleMiddleware::class,
             'check.token.expiry' => \App\Http\Middleware\CheckTokenExpiry::class,
             'admin.auth'         => \App\Http\Middleware\AdminAuthMiddleware::class,
+            'dosen.auth'         => \App\Http\Middleware\DosenAuthMiddleware::class,
         ]);
 
         // Tambahkan check.token.expiry ke group api

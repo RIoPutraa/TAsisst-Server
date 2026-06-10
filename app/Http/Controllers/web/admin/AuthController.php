@@ -44,6 +44,8 @@ class AuthController extends Controller
             ]);
         }
 
+        session()->forget('dosen_user');
+
         // Simpan data admin ke session
         session([
             'admin_user' => [
