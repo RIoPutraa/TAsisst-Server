@@ -12,6 +12,8 @@ use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;   // Import DB
+use Illuminate\Support\Facades\Hash; // Import Hash
 
 class DosenController extends Controller
 {
@@ -33,6 +35,7 @@ class DosenController extends Controller
                 'user_id'     => $user->user_id,
                 'nama'        => $user->nama,
                 'email'       => $user->email,
+                'avatar'      => $user->avatar ? Storage::url($user->avatar) : null, // Tambahan avatar
                 'status_akun' => $user->status_akun,
             ],
             'dosen' => [
@@ -56,42 +59,67 @@ class DosenController extends Controller
             return $this->errorResponse('Data dosen tidak ditemukan.', null, 404);
         }
 
-        $userFields = array_filter([
-            'nama'  => $request->nama,
-            'email' => $request->email,
-        ]);
+        try {
+            // Memulai transaksi database agar data konsisten
+            DB::transaction(function () use ($request, $user, $dosen) {
+                
+                // 1. Update tabel Users
+                if ($request->filled('nama')) {
+                    $user->nama = $request->nama;
+                }
 
-        if (!empty($userFields)) {
-            $user->update($userFields);
+                if ($request->filled('password')) {
+                    $user->password_hash = Hash::make($request->password);
+                }
+
+                if ($request->hasFile('avatar')) {
+                    // Hapus avatar lama jika ada
+                    if ($user->avatar) {
+                        Storage::disk('public')->delete($user->avatar);
+                    }
+                    // Simpan avatar baru ke folder public/avatars
+                    $path = $request->file('avatar')->store('avatars', 'public');
+                    $user->avatar = $path;
+                }
+                
+                $user->save();
+
+                // 2. Update tabel Dosen (Mempertahankan gaya kodemu)
+                $dosenFields = array_filter([
+                    'bidang_keahlian' => $request->bidang_keahlian,
+                    'kuota_bimbingan' => $request->kuota_bimbingan,
+                    'profil_singkat'  => $request->profil_singkat,
+                ], fn($v) => $v !== null);
+
+                if (!empty($dosenFields)) {
+                    $dosen->update($dosenFields);
+                }
+            });
+
+            // Refresh data dari database setelah transaksi selesai
+            $dosen->refresh();
+            $user->refresh();
+
+            return $this->successResponse('Profil berhasil diperbarui', [
+                'user' => [
+                    'user_id' => $user->user_id,
+                    'nama'    => $user->nama,
+                    'email'   => $user->email,
+                    'avatar'  => $user->avatar ? Storage::url($user->avatar) : null, // Kembalikan URL avatar
+                ],
+                'dosen' => [
+                    'dosen_id'        => $dosen->dosen_id,
+                    'nid'             => $dosen->nid,
+                    'bidang_keahlian' => $dosen->bidang_keahlian,
+                    'kuota_bimbingan' => $dosen->kuota_bimbingan,
+                    'profil_singkat'  => $dosen->profil_singkat,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            // Jika ada kode yang gagal (misal gagal simpan foto), semua update dibatalkan
+            return $this->errorResponse('Gagal memperbarui profil: ' . $e->getMessage(), null, 500);
         }
-
-        $dosenFields = array_filter([
-            'bidang_keahlian' => $request->bidang_keahlian,
-            'kuota_bimbingan' => $request->kuota_bimbingan,
-            'profil_singkat'  => $request->profil_singkat,
-        ], fn($v) => $v !== null);
-
-        if (!empty($dosenFields)) {
-            $dosen->update($dosenFields);
-        }
-
-        $dosen->refresh();
-        $user->refresh();
-
-        return $this->successResponse('Profil berhasil diperbarui', [
-            'user' => [
-                'user_id' => $user->user_id,
-                'nama'    => $user->nama,
-                'email'   => $user->email,
-            ],
-            'dosen' => [
-                'dosen_id'        => $dosen->dosen_id,
-                'nid'             => $dosen->nid,
-                'bidang_keahlian' => $dosen->bidang_keahlian,
-                'kuota_bimbingan' => $dosen->kuota_bimbingan,
-                'profil_singkat'  => $dosen->profil_singkat,
-            ],
-        ]);
     }
 
     public function mahasiswaBimbingan(Request $request): JsonResponse

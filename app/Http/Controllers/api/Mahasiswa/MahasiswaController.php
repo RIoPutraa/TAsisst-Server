@@ -104,7 +104,7 @@ class MahasiswaController extends Controller
                 'dosen_id'        => $d->dosen_id,
                 'nama'            => $d->user->nama,
                 'email'           => $d->user->email,
-                'avatar'          => $d->user->avatar,
+                'avatar'          => $d->user->avatar ? \Illuminate\Support\Facades\Storage::url($d->user->avatar) : null,
                 'nid'             => $d->nid,
                 'bidang_keahlian' => $d->bidang_keahlian,
                 'kuota_bimbingan' => $d->kuota_bimbingan,

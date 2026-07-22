@@ -2,6 +2,8 @@
 // routes/api.php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Response;
 
 // Auth Controllers
 use App\Http\Controllers\Api\AuthController;
@@ -219,4 +221,20 @@ Route::prefix('v1')->group(function () {
                 Route::get('/progres',    [AdminMonitoringController::class, 'progres']);
             });
     });
+
+    // Endpoint khusus untuk melayani gambar dengan header CORS
+    Route::get('/image/{path}', function ($path) {
+        $fullPath = storage_path('app/public/' . $path);
+        
+        if (!File::exists($fullPath)) {
+            abort(404);
+        }
+
+        $file = File::get($fullPath);
+        $type = File::mimeType($fullPath);
+
+        return Response::make($file, 200)
+            ->header('Content-Type', $type)
+            ->header('Access-Control-Allow-Origin', '*'); // Ini kunci untuk melewati blokir CORS Flutter Web
+    })->where('path', '.*');
 });
